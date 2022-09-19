@@ -7,7 +7,7 @@ services:
     environment:
       - DOKUWIKI_PASSWORD=password
     #image: bitnami/dokuwiki:20180422
-    image: bitnami/dokuwiki:20200729
+    image: bitnami/dokuwiki:20220731
     ports:
       - "8080:8080"
     volumes:
