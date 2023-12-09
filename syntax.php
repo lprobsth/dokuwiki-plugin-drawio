@@ -7,8 +7,6 @@
  */
 
 // must be run within Dokuwiki
-use dokuwiki\File\MediaResolver;
-
 if (!defined('DOKU_INC')) {
     die();
 }
@@ -53,7 +51,15 @@ class syntax_plugin_drawio extends DokuWiki_Syntax_Plugin
      */
     public function handle($match, $state, $pos, Doku_Handler $handler)
     {
-        return substr($match,9,-2); 
+        $data = array('src' => substr($match,9,-2));
+        $isSVG = preg_match('/\.svg$/i', trim($data['src']));
+        if($this->getConf('svgembed_integration') && $isSVG && !plugin_isdisabled('svgembed')) {
+            $svgembed = plugin_load('syntax', 'svgembed');
+            $syntax = '{{ ' . $data['src'] . ' }}'; // spaces added for "mediacenter" class
+            $svgembed_data = $svgembed->handle($syntax, $state, $pos, $handler);
+            $data['svgembed'] = $svgembed_data;
+        }
+        return $data;
     }
 
     /**
@@ -76,24 +82,34 @@ class syntax_plugin_drawio extends DokuWiki_Syntax_Plugin
 
         // Validate that the image exists otherwise pring a default image
         global $conf;
-        $media_id = $data;
+        $media_id = $data['src'];
         // if no extention specified, use png
         $extension = strtolower(pathinfo($media_id, PATHINFO_EXTENSION));
         if(!in_array($extension,array_map('trim',explode(",",$this->getConf('toolbar_possible_extension'))) )){
             $media_id .= ".png";
         }
 		
-		$current_id = getID();
+	$current_id = getID();
 
-        $media_id = (new MediaResolver($current_id))->resolveId($media_id);
-        $exists = media_exists($media_id);
+	$media_id = (new MediaResolver($current_id))->resolveId($media_id);
+	$exists = media_exists($media_id);
 				
         if(!$exists){
             $renderer->doc .= "<img class='mediacenter' id='".$media_id."' 
                         style='max-width:100%;cursor:pointer;' onclick='edit(this);'
                         src='".DOKU_BASE."lib/plugins/drawio/blank-image.png' 
                         alt='".$media_id."' />";
-        }elseif($extension == 'svg') {
+        } elseif(isset($data['svgembed'])) {
+            $renderer->doc .= "<div class='drawio_svgembed' style='text-align:center;'>";
+            $svgembed = plugin_load('syntax', 'svgembed');
+            $svgembed->render($mode, $renderer, $data['svgembed']);
+            // we add hidden image to render to allow edit
+            $renderer->doc .= "<img id='" . $media_id . "' 
+                            style='display: none;'
+                            src='" . DOKU_BASE . "lib/exe/fetch.php?media=" . $media_id . "' 
+                            alt='" . $media_id . "' />";
+            $renderer->doc .= "</div>";
+        } elseif($extension == 'svg') {
             $filename = mediaFN($media_id);
             $svg = simplexml_load_file($filename);
             $width = $svg["width"];
@@ -121,7 +137,7 @@ class syntax_plugin_drawio extends DokuWiki_Syntax_Plugin
                         alt='".$media_id."' />";
         }
 
-        if($this->getConf('edit_button')) {
+        if($this->getConf('edit_button') or isset($data['svgembed'])) {
             $auth = auth_quickaclcheck(getNS($media_id).':*');
             $auth_ow = (($conf['mediarevisions']) ? AUTH_UPLOAD : AUTH_DELETE);
             if ($auth >= $auth_ow) {
