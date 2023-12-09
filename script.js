@@ -182,21 +182,36 @@ function edit_cb(image)
                     imgData = decodeURIComponent(atob(imgBase64).split('').map(function(c) {
                         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                     }).join(''));
-                    var oldSvgElement = document.getElementById(image.id);
-                    var oldSvgElementOnclick = oldSvgElement.getAttribute("onclick");
-                    var odlSvgParentNode = oldSvgElement.parentNode;
-                    odlSvgParentNode.innerHTML = imgData;
-                    var newSvgElement = odlSvgParentNode.firstElementChild;
-                    var wigth = newSvgElement.getAttribute("width");
-                    var height = newSvgElement.getAttribute("height");
-                    newSvgElement.style.width = wigth;
-                    newSvgElement.style.height = height;
-                    newSvgElement.setAttribute("class","mediacenter");
-                    if (oldSvgElementOnclick != null) { // previous svg has onclick property - keep it here
-                        newSvgElement.style.cursor = "pointer";
-                        newSvgElement.setAttribute('onclick', 'edit(this);');
+                    var baseElement = document.getElementById(image.id);
+                    var isSvgEmbed = 0;
+                    if(baseElement.parentNode.classList.contains('drawio_svgembed')) {
+                        var objectElement = baseElement.parentNode.querySelector('object');
+                        // var svgDocument = objectElement.contentDocument;
+                        // var svgElement = svgDocument.querySelector('svg');
+                        // objectElement.innerHTML = imgData;
+                        // svgElement.
+                        var currentSrc = objectElement.getAttribute('data');
+                        var newSrc = currentSrc + (currentSrc.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+
+                        objectElement.setAttribute('data', newSrc);
+
+                    } else {
+                        var oldSvgElement = baseElement;
+                        var oldSvgElementOnclick = oldSvgElement.getAttribute("onclick");
+                        var odlSvgParentNode = oldSvgElement.parentNode;
+                        odlSvgParentNode.innerHTML = imgData;
+                        var newSvgElement = odlSvgParentNode.firstElementChild;
+                        var wigth = newSvgElement.getAttribute("width");
+                        var height = newSvgElement.getAttribute("height");
+                        newSvgElement.style.width = wigth;
+                        newSvgElement.style.height = height;
+                        newSvgElement.setAttribute("class","mediacenter");
+                        if (oldSvgElementOnclick != null) { // previous svg has onclick property - keep it here
+                            newSvgElement.style.cursor = "pointer";
+                            newSvgElement.setAttribute('onclick', 'edit(this);');
+                        }
+                        newSvgElement.id=image.id;
                     }
-                    newSvgElement.id=image.id;
                 }
                 
                 localStorage.setItem(name, JSON.stringify({lastModified: new Date(), data: imgData}));
